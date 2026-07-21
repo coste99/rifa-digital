@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ nombre_rifa }}</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+    <!-- ==========================
+            PORTADA HERO
+    =========================== -->
+
+    <section class="hero-rifa">
+
+        <img src="{{ url_for('static', filename='imagenes/rifa-principal.webp') }}"
+             class="hero-img"
+             alt="Gran Rifa">
+
+        <div class="hero-overlay" style="text-align: center;">
+
+            <h1>🏆 {{ nombre_rifa }}</h1>
+
+            <p>
+                ¡Participa y gana!
+            </p>
+
+            <div class="hero-info">
+
+                <div class="hero-card">
+                    <span>🏆 Premio</span>
+                    <strong>{{ premio }}</strong>
+                </div>
+
+                <div class="hero-card">
+                    <span>🎫 Valor</span>
+                    <strong>{{ valor }}</strong>
+                </div>
+
+                <div class="hero-card">
+                    <span>📅 Sorteo</span>
+                    <strong>{{ fecha }}</strong>
+                </div>
+
+                <div class="hero-card">
+                    <span>🔥 Disponibles</span>
+                    <strong>{{ disponibles }}/100</strong>
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+    {% if bloqueada == "SI" %}
+
+    <div class="ganador-box">
+
+        <h2>🏆 RIFA FINALIZADA</h2>
+
+        <p>Número ganador</p>
+
+        <h1>{{ "%02d"|format(ganador) }}</h1>
+
+    </div>
+
+    {% endif %}
+
+    <!-- ==========================
+            LEYENDA
+    =========================== -->
+
+    <div class="leyenda">
+
+        <div>
+
+            <span class="circulo libre-color"></span>
+
+            Disponible
+
+        </div>
+
+        <div>
+
+            <span class="circulo reservado-color"></span>
+
+            Reservado
+
+        </div>
+
+        <div>
+
+            <span class="circulo pagado-color"></span>
+
+            Vendido
+
+        </div>
+
+    </div>
+
+    <!-- ==========================
+            TITULO
+    =========================== -->
+
+    <div class="titulo-grid">
+
+        <h2>🎟 Escoge tu número de la suerte</h2>
+
+        <p>
+            Haz clic sobre cualquier número disponible.
+        </p>
+
+    </div>
+
+    <!-- ==========================
+            NUMEROS (00 AL 99)
+    =========================== -->
+
+    <div class="grid">
+
+        {% for n in numeros %}
+
+        <div
+            class="numero {{ n.estado }}"
+            {% if bloqueada=="NO" %}
+            onclick="abrirModal({{ n.numero }})"
+            {% endif %}
+        >
+
+            {% if bloqueada=="SI" and n.numero==ganador %}
+
+            ⭐<br>
+
+            {{ "%02d"|format(n.numero) }}
+
+            {% else %}
+
+            {{ "%02d"|format(n.numero) }}
+
+            {% endif %}
+
+        </div>
+
+        {% endfor %}
+
+    </div>
+
+    <!-- ==========================
+            TEXTO
+    =========================== -->
+
+    <div class="footer-info">
+
+        {% if bloqueada=="SI" %}
+
+        <p>
+
+            🏆 La rifa ha finalizado.
+
+            Número ganador:
+
+            {{ "%02d"|format(ganador) }}
+
+        </p>
+
+        {% else %}
+
+        <p>
+
+            Selecciona un número y resérvalo.
+
+        </p>
+
+        {% endif %}
+
+    </div>
+
+    <!-- ==========================
+            MODAL
+    =========================== -->
+
+    <div id="modalCompra" class="modal">
+
+        <div class="modal-content">
+
+            <span
+                class="cerrar"
+                onclick="cerrarModal()">
+
+                &times;
+
+            </span>
+
+            <h2>
+
+                🎟 Reservar Número
+
+            </h2>
+
+            <div class="numero-modal">
+
+                <span id="numeroSeleccionado">
+
+                    00
+
+                </span>
+
+            </div>
+
+            <input
+                type="text"
+                id="nombre"
+                placeholder="👤 Nombre completo">
+
+            <input
+                type="text"
+                id="telefono"
+                placeholder="📱 Teléfono">
+
+            <button onclick="reservarNumero()">
+
+                Reservar Número
+
+            </button>
+
+        </div>
+
+    </div>
+
+    <!-- ==========================
+            PIE
+    =========================== -->
+
+    <footer class="footer-rifa">
+
+        <div>
+
+            <h3>
+
+                🍀 ¡Mucha suerte!
+
+            </h3>
+
+            <p>
+
+                Gracias por participar.
+
+            </p>
+
+        </div>
+
+        <a
+            href="/admin"
+            class="admin-link">
+
+            🔒 Panel Administrador
+
+        </a>
+
+    </footer>
+
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+
+</body>
+
+</html>

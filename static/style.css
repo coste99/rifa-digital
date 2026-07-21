@@ -1,0 +1,558 @@
+/*====================================================
+            GRAN RIFA DIGITAL V2
+        Diseño Negro + Verde Neón
+====================================================*/
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:'Segoe UI',sans-serif;
+}
+
+body{
+    background:
+        linear-gradient(rgba(0,0,0,.88),
+        rgba(0,0,0,.95)),
+        url("imagenes/fondo.webp");
+
+    background-size:cover;
+    background-position:center;
+    background-attachment:fixed;
+
+    color:white;
+}
+
+/*====================================
+            HERO / BARRA INFO
+====================================*/
+
+.hero-rifa{
+    width:95%;
+    max-width:1300px;
+    margin:15px auto;
+    border-radius:20px;
+    overflow:hidden;
+    position:relative;
+    box-shadow:
+        0 0 20px #00ff66,
+        0 0 40px rgba(0,255,100,.2);
+    animation:aparecer .8s ease;
+}
+
+.hero-img{
+    width:100%;
+    display:block;
+}
+
+.hero-overlay{
+    position:relative;
+    width:100%;
+    background:linear-gradient(rgba(0,0,0,.4), rgba(0,0,0,.9));
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    padding:20px 30px;
+}
+
+.hero-overlay h1{
+    font-size:38px;
+    color:#00ff66;
+    text-shadow:0 0 15px #00ff66;
+}
+
+.hero-overlay p{
+    margin-top:4px;
+    font-size:18px;
+    color:#e0e0e0;
+}
+
+.hero-info{
+    display:flex;
+    gap:12px;
+    margin-top:15px;
+    flex-wrap:wrap;
+}
+
+.hero-card{
+    flex:1;
+    min-width:140px;
+    padding:12px 15px;
+    border-radius:14px;
+    background:rgba(0,0,0,.6);
+    backdrop-filter:blur(15px);
+    border:1px solid #00ff66;
+    transition:.35s;
+    text-align:center;
+}
+
+.hero-card:hover{
+    transform:translateY(-3px);
+    box-shadow:0 0 15px #00ff66;
+}
+
+.hero-card span{
+    color:#cfcfcf;
+    font-size:13px;
+    display:block;
+    text-transform:uppercase;
+    letter-spacing:0.5px;
+}
+
+.hero-card strong{
+    display:block;
+    margin-top:4px;
+    color:#00ff66;
+    font-size:22px;
+    word-break:break-word;
+}
+
+/*====================================
+        RIFA FINALIZADA
+====================================*/
+
+.ganador-box{
+    width:90%;
+    max-width:700px;
+    margin:20px auto;
+    text-align:center;
+    background:#111;
+    border:3px solid gold;
+    border-radius:20px;
+    padding:25px;
+    box-shadow:0 0 30px gold;
+}
+
+.ganador-box h1{
+    font-size:60px;
+    color:gold;
+}
+
+/*====================================
+        WHATSAPP (COMPARTIR)
+====================================*/
+
+.whatsapp-box{
+    width:95%;
+    max-width:1300px;
+    margin:12px auto;
+    padding:10px 20px;
+    border-radius:14px;
+    background:rgba(20,20,20,.85);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:10px;
+    border:1px solid #00ff66;
+}
+
+.whatsapp-box h3{
+    font-size:16px;
+    color:#fff;
+}
+
+.whatsapp-box p{
+    font-size:13px;
+    color:#bbb;
+    margin-top:2px;
+}
+
+.btn-whatsapp{
+    text-decoration:none;
+    color:white;
+    background:#00c853;
+    padding:10px 22px;
+    border-radius:10px;
+    transition:.3s;
+    font-weight:bold;
+    font-size:14px;
+    display:inline-block;
+}
+
+.btn-whatsapp:hover{
+    transform:scale(1.05);
+    background:#00ff66;
+    color:#000;
+}
+
+/*====================================
+            LEYENDA
+====================================*/
+
+.leyenda{
+    width:92%;
+    max-width:1200px;
+    margin:15px auto;
+    display:flex;
+    justify-content:center;
+    gap:25px;
+    flex-wrap:wrap;
+}
+
+.leyenda div{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-size:16px;
+}
+
+.circulo{
+    width:15px;
+    height:15px;
+    border-radius:50%;
+}
+
+.libre-color{ background:#00ff66; }
+.reservado-color{ background:#ffd600; }
+.pagado-color{ background:#ff1744; }
+
+/*====================================
+        TITULO NUMEROS
+====================================*/
+
+.titulo-grid{
+    text-align:center;
+    margin-top:20px;
+}
+
+.titulo-grid h2{
+    color:#00ff66;
+    font-size:28px;
+}
+
+.titulo-grid p{
+    margin-top:4px;
+    color:#ccc;
+    font-size:14px;
+}
+
+/*====================================
+            GRID NUMEROS
+====================================*/
+
+.grid{
+    width:95%;
+    max-width:1300px;
+    margin:20px auto;
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(50px, 1fr));
+    gap:8px;
+}
+
+.numero{
+    height:50px;
+    border-radius:10px;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    flex-direction:column;
+    cursor:pointer;
+    font-size:16px;
+    font-weight:bold;
+    transition:.25s;
+    border:2px solid transparent;
+    user-select:none;
+    animation:zoom .4s ease;
+}
+
+/*==============================
+        ESTADOS NUMEROS
+==============================*/
+
+.numero.libre{
+    background:#111;
+    color:#00ff66;
+    border-color:#00ff66;
+    position:relative;
+    overflow:hidden;
+}
+
+.numero.libre:hover{
+    transform:translateY(-4px) scale(1.05);
+    box-shadow:0 0 10px #00ff66, 0 0 20px #00ff66;
+}
+
+.numero.libre::before{
+    content:"";
+    position:absolute;
+    left:-120%;
+    top:0;
+    width:60%;
+    height:100%;
+    background:linear-gradient(90deg, transparent, rgba(255,255,255,.35), transparent);
+    transition:.7s;
+}
+
+.numero.libre:hover::before{
+    left:150%;
+}
+
+.numero.reservado{
+    background:#ffd600;
+    color:#111;
+    border-color:#fff176;
+}
+
+.numero.reservado:hover{
+    transform:scale(1.05);
+}
+
+.numero.pagado{
+    background:#ff1744;
+    color:white;
+    border-color:#ff5252;
+}
+
+.numero.pagado:hover{
+    transform:scale(1.05);
+}
+
+/*====================================
+            FOOTER INFO
+====================================*/
+
+.footer-info{
+    width:90%;
+    max-width:900px;
+    margin:25px auto;
+    text-align:center;
+    color:#dddddd;
+    font-size:18px;
+}
+
+/*====================================
+            MODAL
+====================================*/
+
+.modal{
+    display:none;
+    position:fixed;
+    left:0;
+    top:0;
+    width:100%;
+    height:100%;
+    background:rgba(0,0,0,.85);
+    z-index:999;
+}
+
+.modal-content{
+    width:95%;
+    max-width:480px;
+    margin:60px auto;
+    background:#121212;
+    border-radius:20px;
+    padding:30px;
+    border:2px solid #00ff66;
+    box-shadow:0 0 25px #00ff66;
+    animation:subir .35s ease;
+}
+
+@keyframes subir{
+    from{ transform:translateY(40px); opacity:0; }
+    to{ transform:translateY(0); opacity:1; }
+}
+
+.cerrar{
+    float:right;
+    font-size:32px;
+    cursor:pointer;
+    color:#00ff66;
+}
+
+.modal-content h2{
+    text-align:center;
+    color:#00ff66;
+    margin-bottom:20px;
+}
+
+.numero-modal{
+    width:100px;
+    height:100px;
+    border-radius:50%;
+    margin:15px auto 25px;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    background:#00ff66;
+    color:black;
+    font-size:36px;
+    font-weight:bold;
+}
+
+.modal-content input{
+    width:100%;
+    padding:14px;
+    margin-bottom:15px;
+    border:none;
+    outline:none;
+    border-radius:10px;
+    background:#1e1e1e;
+    color:white;
+    font-size:16px;
+    border:1px solid #00ff66;
+}
+
+.modal-content input:focus{
+    box-shadow:0 0 12px #00ff66;
+}
+
+.modal-content button{
+    width:100%;
+    padding:15px;
+    border:none;
+    border-radius:10px;
+    background:#00ff66;
+    color:#111;
+    font-size:18px;
+    font-weight:bold;
+    cursor:pointer;
+    transition:.3s;
+}
+
+.modal-content button:hover{
+    transform:scale(1.02);
+    box-shadow:0 0 20px #00ff66;
+}
+
+/*====================================
+            FOOTER
+====================================*/
+
+.footer-rifa{
+    margin-top:40px;
+    padding:25px;
+    background:#0d0d0d;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    flex-wrap:wrap;
+    border-top:2px solid #00ff66;
+}
+
+.footer-rifa h3{
+    color:#00ff66;
+    margin-bottom:6px;
+}
+
+.admin-link{
+    text-decoration:none;
+    color:white;
+    padding:12px 20px;
+    border:1px solid #00ff66;
+    border-radius:10px;
+    transition:.3s;
+    font-weight:bold;
+    letter-spacing:.5px;
+}
+
+.admin-link:hover{
+    background:#00ff66;
+    color:#111;
+}
+
+/*====================================
+        EFECTOS & ANIMACIONES
+====================================*/
+
+@keyframes aparecer{
+    from{ opacity:0; transform:translateY(20px); }
+    to{ opacity:1; transform:translateY(0); }
+}
+
+@keyframes zoom{
+    from{ transform:scale(.8); opacity:0; }
+    to{ transform:scale(1); opacity:1; }
+}
+
+::-webkit-scrollbar{ width:8px; }
+::-webkit-scrollbar-track{ background:#0b0b0b; }
+::-webkit-scrollbar-thumb{ background:#00ff66; border-radius:10px; }
+::-webkit-scrollbar-thumb:hover{ background:#00dd55; }
+
+::selection{ background:#00ff66; color:#000; }
+
+img{ max-width:100%; display:block; }
+button, input{ font-family:inherit; }
+
+/*====================================
+        RESPONSIVE
+====================================*/
+
+@media(max-width:768px){
+    .hero-overlay{
+        padding:15px;
+    }
+
+    .hero-overlay h1{
+        font-size:28px;
+    }
+
+    .hero-overlay p{
+        font-size:15px;
+    }
+
+    .hero-info{
+        gap:8px;
+    }
+
+    .hero-card{
+        min-width:45%;
+        padding:10px;
+    }
+
+    .hero-card strong{
+        font-size:18px;
+    }
+
+    .whatsapp-box{
+        flex-direction:column;
+        text-align:center;
+        gap:10px;
+        padding:15px;
+    }
+
+    .grid{
+        grid-template-columns:repeat(auto-fill, minmax(45px, 1fr));
+        gap:6px;
+    }
+
+    .numero{
+        height:45px;
+        font-size:14px;
+    }
+
+    .footer-rifa{
+        flex-direction:column;
+        gap:15px;
+        text-align:center;
+    }
+}
+
+@media(max-width:500px){
+    .hero-card{
+        min-width:100%;
+    }
+
+    .grid{
+        grid-template-columns:repeat(auto-fill, minmax(40px, 1fr));
+        gap:5px;
+    }
+
+    .numero{
+        height:40px;
+        font-size:13px;
+        border-radius:8px;
+    }
+
+    .modal-content{
+        padding:20px;
+        margin:30px auto;
+    }
+
+    .numero-modal{
+        width:80px;
+        height:80px;
+        font-size:28px;
+    }
+}

@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Administrador</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='panel.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        /* Estilos para el Modal de Compradores */
+        .modal-compradores {
+            display: none;
+            position: fixed;
+            z-index: 9999;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-compradores-content {
+            background-color: #121212;
+            border: 2px solid #00ff66;
+            border-radius: 12px;
+            margin: 4% auto;
+            padding: 24px;
+            width: 90%;
+            max-width: 1000px;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: 0 0 20px rgba(0, 255, 102, 0.2);
+            color: #fff;
+            position: relative;
+        }
+
+        .cerrar-modal {
+            color: #888;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .cerrar-modal:hover {
+            color: #00ff66;
+        }
+
+        .header-modal-compradores {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #333;
+            padding-bottom: 12px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="dashboard-layout">
+
+        <!-- MENU LATERAL -->
+        <div class="sidebar">
+            <h2>🎟 RIFA</h2>
+            <a href="#">📊 Dashboard</a>
+            <a href="/">🌐 Ver Rifa</a>
+            <!-- Ahora este enlace abre la ventana emergente -->
+            <a href="javascript:void(0)" onclick="abrirModalCompradores()">👥 Compradores</a>
+            <a href="#configuracion">⚙ Configuración</a>
+            <a href="#estadisticas">📈 Estadísticas</a>
+            <a href="/logout">🚪 Cerrar Sesión</a>
+        </div>
+
+        <!-- CONTENIDO -->
+        <div class="dashboard">
+
+            <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <h1>📊 Dashboard Rifa</h1>
+                <button onclick="abrirModalCompradores()" class="accion-btn" style="width: auto; padding: 10px 20px;">
+                    👥 Ver Lista de Compradores
+                </button>
+            </div>
+
+            <!-- TARJETAS -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3>Total</h3>
+                    <h2>{{ total_numeros }}</h2>
+                </div>
+                <div class="stat-card">
+                    <h3>Disponibles</h3>
+                    <h2>{{ disponibles }}</h2>
+                </div>
+                <div class="stat-card">
+                    <h3>Reservados</h3>
+                    <h2>{{ reservados }}</h2>
+                </div>
+                <div class="stat-card">
+                    <h3>Pagados</h3>
+                    <h2>{{ pagados }}</h2>
+                </div>
+                <div class="stat-card">
+                    <h3>Recaudado</h3>
+                    <h2>${{ recaudado }}</h2>
+                </div>
+            </div>
+
+            <!-- GRAFICA Y CONFIGURACION (Ahora suben directamente) -->
+            <div class="panel-grid">
+
+                <!-- GRAFICO -->
+                <div class="grafico-card" id="estadisticas">
+                    <h2>📈 Estadísticas</h2>
+                    <canvas id="miGrafico"></canvas>
+                    <div style="margin-top:15px;">
+                        <div class="compartir-card-mini">
+                            <h3>🔗 Link de la Rifa</h3>
+                            <button class="accion-btn" onclick="copiarEnlace()">📋 Copiar Link</button>
+                            <input type="text" id="linkRifa" value="{{ request.url_root }}" readonly style="display:none;">
+                        </div>
+
+                        <div class="compartir-card-mini">
+                            <h3>📲 Compartir WhatsApp</h3>
+                            <a href="https://wa.me/?text={{ request.url_root }}" target="_blank" class="accion-btn">
+                                Compartir por WhatsApp
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CONFIGURACION -->
+                <div class="config-card" id="configuracion">
+                    <form action="/guardar_configuracion" method="POST" class="config-form">
+
+                        <label>🎟 Nombre de la Rifa</label>
+                        <input type="text" name="nombre_rifa" value="{{ nombre_rifa_cfg }}" required>
+
+                        <label>🎁 Premio</label>
+                        <input type="text" name="premio" value="{{ premio_cfg }}" required>
+
+                        <label>💰 Valor</label>
+                        <input type="text" name="valor" value="{{ valor_cfg }}" required>
+
+                        <label>📱 WhatsApp</label>
+                        <input type="text" name="whatsapp" value="{{ whatsapp_cfg }}" required>
+
+                        <label>📅 Sorteo</label>
+                        <input type="text" name="fecha_sorteo" value="{{ fecha_cfg }}" required>
+
+                        <button type="submit" class="accion-btn">
+                            💾 Guardar Cambios
+                        </button>
+
+                    </form>
+
+                    <hr style="margin:20px 0;">
+
+                    <p>
+                        <strong>Estado:</strong>
+                        {% if bloqueada == "SI" %}
+                            Finalizada
+                        {% else %}
+                            Activa
+                        {% endif %}
+                    </p>
+
+                    {% if bloqueada == "NO" %}
+                    <h3 style="margin-top:15px;">🏆 Finalizar Rifa</h3>
+                    <form id="formGanador">
+                        <input type="number"
+                               id="numeroGanador"
+                               min="0"
+                               max="99"
+                               placeholder="Número ganador (00-99)"
+                               required>
+
+                        <button type="button" onclick="finalizarRifa()" class="accion-btn">
+                            🏆 Finalizar Rifa
+                        </button>
+                    </form>
+                    {% else %}
+                    <h3>🏆 Número Ganador</h3>
+                    <h1>{{ "%02d"|format(ganador) }}</h1>
+                    <p>La rifa ya fue finalizada.</p>
+                    {% endif %}
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- ==========================
+          MODAL COMPRADORES
+    =========================== -->
+    <div id="modalCompradores" class="modal-compradores">
+        <div class="modal-compradores-content">
+            <div class="header-modal-compradores">
+                <h2>👥 Lista de Compradores y Reservas</h2>
+                <span class="cerrar-modal" onclick="cerrarModalCompradores()">&times;</span>
+            </div>
+
+            <div class="tabla-responsive">
+                <table class="tabla">
+                    <thead>
+                        <tr>
+                            <th>Número</th>
+                            <th>Nombre</th>
+                            <th>Teléfono</th>
+                            <th>Estado</th>
+                            <th>Fecha</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for compra in compras %}
+                        <tr>
+                            <td>{{ "%02d"|format(compra[1]) }}</td>
+                            <td>{{ compra[2] }}</td>
+                            <td>{{ compra[3] }}</td>
+                            <td>{{ compra[4] }}</td>
+                            <td>{{ compra[5] }}</td>
+                            <td>
+                                {% if bloqueada == "NO" %}
+                                <a href="/pagado/{{ compra[1] }}" class="btn-verde">Pagado</a>
+                                <a href="/reservado/{{ compra[1] }}" class="btn-amarillo">Reservado</a>
+                                <a href="/liberar/{{ compra[1] }}" class="btn-rojo">Liberar</a>
+                                {% endif %}
+                                <a href="https://wa.me/57{{ compra[3] }}" target="_blank" class="btn-whats">WhatsApp</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function abrirModalCompradores() {
+            document.getElementById("modalCompradores").style.display = "block";
+        }
+
+        function cerrarModalCompradores() {
+            document.getElementById("modalCompradores").style.display = "none";
+        }
+
+        // Cerrar modal al hacer clic fuera de él
+        window.onclick = function(event) {
+            let modal = document.getElementById("modalCompradores");
+            if (event.target == modal) {
+                modal.style.display = "none";
+            }
+        }
+
+        function finalizarRifa() {
+            let numero = document.getElementById("numeroGanador").value;
+            if (numero == "") {
+                alert("Ingrese un número ganador");
+                return;
+            }
+            if (confirm("¿Finalizar la rifa con el número " + numero + "?")) {
+                window.location = "/finalizar_rifa/" + numero;
+            }
+        }
+
+        function copiarEnlace() {
+            const link = document.getElementById("linkRifa");
+            link.select();
+            document.execCommand("copy");
+            alert("Link copiado correctamente");
+        }
+
+        const ctx = document.getElementById('miGrafico');
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Disponibles', 'Reservados', 'Pagados'],
+                datasets: [{
+                    data: [{{ disponibles }}, {{ reservados }}, {{ pagados }}],
+                    backgroundColor: ['#00d4ff', '#eab308', '#dc2626']
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+    </script>
+
+</body>
+
+</html>
