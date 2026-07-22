@@ -1,5 +1,7 @@
 from flask import Flask, render_template, request, jsonify, redirect, session
 import sqlite3
+import psycopg2
+import psycopg2.extras
 from datetime import datetime
 import os
 from config import *
@@ -8,10 +10,24 @@ app = Flask(__name__)
 app.secret_key = "rifa2026"
 
 # ==========================
-# CONFIGURACIÓN DE RUTAS ABSOLUTAS
+# CONFIGURACIÓN DE BASE DE DATOS (POSTGRESQL / SQLITE)
 # ==========================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "rifa.db")
+
+def get_db_connection():
+    db_url = os.environ.get("DATABASE_URL")
+    if db_url:
+        if db_url.startswith("postgres://"):
+            db_url = db_url.replace("postgres://", "postgresql://", 1)
+        conn = psycopg2.connect(db_url)
+        return conn, "postgres"
+    else:
+        conn = sqlite3.connect(DB_PATH)
+        return conn, "sqlite"
+
+def get_placeholder(db_type):
+    return "%s" if db_type == "postgres" else "?"
 
 # ==========================
 # CONFIGURACION
@@ -29,16 +45,17 @@ HORA_SORTEO = "8:00 PM"
 TOTAL_NUMEROS = 100
 
 # ==========================
-# BASE DE DATOS
+# BASE DE DATOS INICIALIZACIÓN
 # ==========================
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
+    conn, db_type = get_db_connection()
     cursor = conn.cursor()
 
-    # TABLA COMPRAS
-    cursor.execute("""
+    pk_type = "SERIAL PRIMARY KEY" if db_type == "postgres" else "INTEGER PRIMARY KEY AUTOINCREMENT"
+
+    cursor.execute(f"""
     CREATE TABLE IF NOT EXISTS compras(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id {pk_type},
         numero INTEGER UNIQUE,
         nombre TEXT,
         telefono TEXT,
@@ -48,7 +65,6 @@ def init_db():
     )
     """)
 
-    # TABLA CONFIGURACION
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS configuracion(
         id INTEGER PRIMARY KEY,
@@ -63,63 +79,35 @@ def init_db():
     )
     """)
 
-    cursor.execute("""
-    INSERT OR IGNORE INTO configuracion(
-        id,
-        nombre_rifa,
-        premio,
-        valor,
-        fecha_sorteo,
-        whatsapp,
-        estado
-    )
-    VALUES(
-        1,
-        'GRAN RIFA DIGITAL',
-        '$800.000',
-        '$10.000',
-        '15 Junio 2026',
-        '573001234567',
-        'Activa'
-    )
-    """)
-
-    try:
+    if db_type == "postgres":
         cursor.execute("""
-        ALTER TABLE configuracion
-        ADD COLUMN ganador INTEGER DEFAULT 0
-    """)
-    except:
-        pass
-
-    try:
-       cursor.execute("""
-       ALTER TABLE configuracion
-       ADD COLUMN fecha_bloqueada TEXT DEFAULT 'NO'
-    """)
-    except:
-        pass
-
-    try:
+        INSERT INTO configuracion(id, nombre_rifa, premio, valor, fecha_sorteo, whatsapp, estado)
+        VALUES(1, 'GRAN RIFA DIGITAL', '$800.000', '$10.000', '15 Junio 2026', '573001234567', 'Activa')
+        ON CONFLICT (id) DO NOTHING
+        """)
+    else:
         cursor.execute("""
-        ALTER TABLE configuracion
-        ADD COLUMN bloqueada TEXT DEFAULT 'NO'
-    """)
-    except:
-        pass
+        INSERT OR IGNORE INTO configuracion(id, nombre_rifa, premio, valor, fecha_sorteo, whatsapp, estado)
+        VALUES(1, 'GRAN RIFA DIGITAL', '$800.000', '$10.000', '15 Junio 2026', '573001234567', 'Activa')
+        """)
 
-    try:
-        cursor.execute("""
-        ALTER TABLE compras
-        ADD COLUMN liberaciones INTEGER DEFAULT 0
-    """)
-    except:
-        pass
+    # Columnas opcionales
+    for col_query in [
+        "ALTER TABLE configuracion ADD COLUMN ganador INTEGER DEFAULT 0",
+        "ALTER TABLE configuracion ADD COLUMN fecha_bloqueada TEXT DEFAULT 'NO'",
+        "ALTER TABLE configuracion ADD COLUMN bloqueada TEXT DEFAULT 'NO'",
+        "ALTER TABLE compras ADD COLUMN liberaciones INTEGER DEFAULT 0"
+    ]:
+        try:
+            cursor.execute(col_query)
+            conn.commit()
+        except:
+            if db_type == "postgres":
+                conn.rollback()
 
     conn.commit()
     conn.close()
 
-# Inicializamos la base de datos justo aquí para asegurar que las tablas existan
 init_db()
 
 # ==========================
@@ -127,46 +115,24 @@ init_db()
 # ==========================
 @app.route('/')
 def inicio():
-    conn = sqlite3.connect(DB_PATH)
+    conn, db_type = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("""
-    SELECT
-        nombre_rifa,
-        premio,
-        valor,
-        fecha_sorteo,
-        whatsapp,
-        estado,
-        ganador,
-        bloqueada
+    SELECT nombre_rifa, premio, valor, fecha_sorteo, whatsapp, estado, ganador, bloqueada
     FROM configuracion
     WHERE id=1
     """)
-
     config = cursor.fetchone()
 
-    nombre_rifa = config[0]
-    premio = config[1]
-    valor = config[2]
-    fecha_sorteo = config[3]
-    whatsapp = config[4]
-    estado_rifa = config[5]
-    ganador = config[6]
-    bloqueada = config[7]
+    nombre_rifa, premio, valor, fecha_sorteo, whatsapp, estado_rifa, ganador, bloqueada = config
     
-    cursor.execute("""
-    SELECT numero, estado
-    FROM compras
-    """)
-
+    cursor.execute("SELECT numero, estado FROM compras")
     registros = cursor.fetchall()
     conn.close()
 
-    estados = {}
-    for numero, estado in registros:
-        estados[numero] = estado
+    estados = {numero: estado for numero, estado in registros}
 
-    # --- CAMBIO AQUÍ: Genera exactamente del 0 al 99 ---
+    # Genera exactamente números del 0 al 99 (con formato de dos dígitos para la UI si aplica)
     numeros = []
     for i in range(0, TOTAL_NUMEROS):
         estado = estados.get(i, "libre")
@@ -175,15 +141,8 @@ def inicio():
             "estado": estado
         })
 
-    reservados = 0
-    pagados = 0
-
-    for estado in estados.values():
-        if estado == "reservado":
-            reservados += 1
-        elif estado == "pagado":
-            pagados += 1
-
+    reservados = sum(1 for e in estados.values() if e == "reservado")
+    pagados = sum(1 for e in estados.values() if e == "pagado")
     disponibles = TOTAL_NUMEROS - (reservados + pagados)
 
     return render_template(
@@ -213,41 +172,21 @@ def reservar():
         nombre = datos["nombre"]
         telefono = datos["telefono"]
 
-        conn = sqlite3.connect(DB_PATH)
+        conn, db_type = get_db_connection()
         cursor = conn.cursor()
+        p = get_placeholder(db_type)
         
-        cursor.execute("""
-        SELECT bloqueada
-        FROM configuracion
-        WHERE id=1
-        """)
-
+        cursor.execute("SELECT bloqueada FROM configuracion WHERE id=1")
         estado_bloqueo = cursor.fetchone()
 
         if estado_bloqueo and estado_bloqueo[0] == "SI":
             conn.close()
-            return jsonify({
-                "success": False,
-                "error": "La rifa ya fue finalizada"
-            })
-        cursor.execute("""
-        INSERT INTO compras(
-            numero,
-            nombre,
-            telefono,
-            estado,
-            fecha,
-            valor
-        )
-        VALUES(?,?,?,?,?,?)
-        """, (
-            numero,
-            nombre,
-            telefono,
-            "reservado",
-            datetime.now().strftime("%d/%m/%Y %H:%M"),
-            VALOR_NUMERO
-        ))
+            return jsonify({"success": False, "error": "La rifa ya fue finalizada"})
+
+        cursor.execute(f"""
+        INSERT INTO compras(numero, nombre, telefono, estado, fecha, valor)
+        VALUES({p}, {p}, {p}, {p}, {p}, {p})
+        """, (numero, nombre, telefono, "reservado", datetime.now().strftime("%d/%m/%Y %H:%M"), VALOR_NUMERO))
 
         conn.commit()
         conn.close()
@@ -255,10 +194,7 @@ def reservar():
         return jsonify({"success": True})
 
     except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": str(e)
-        })
+        return jsonify({"success": False, "error": str(e)})
 
 # ==========================
 # LOGIN ADMIN
@@ -281,70 +217,36 @@ def panel():
     if not session.get("admin"):
         return redirect("/admin")
 
-    conn = sqlite3.connect(DB_PATH)
+    conn, db_type = get_db_connection()
     cursor = conn.cursor()
 
-    cursor.execute("""
-    SELECT *
-    FROM compras
-    ORDER BY numero
-    """)
+    cursor.execute("SELECT * FROM compras ORDER BY numero")
     compras = cursor.fetchall()
 
-    cursor.execute("""
-    SELECT COUNT(*)
-    FROM compras
-    WHERE estado='reservado'
-    """)
+    cursor.execute("SELECT COUNT(*) FROM compras WHERE estado='reservado'")
     reservados = cursor.fetchone()[0]
 
-    cursor.execute("""
-    SELECT COUNT(*)
-    FROM compras
-    WHERE estado='pagado'
-    """)
+    cursor.execute("SELECT COUNT(*) FROM compras WHERE estado='pagado'")
     pagados = cursor.fetchone()[0]
 
     disponibles = TOTAL_NUMEROS - (reservados + pagados)
 
-    cursor.execute("""
-    SELECT IFNULL(SUM(valor),0)
-    FROM compras
-    WHERE estado='pagado'
-    """)
+    cursor.execute("SELECT COALESCE(SUM(valor), 0) FROM compras WHERE estado='pagado'")
     recaudado = cursor.fetchone()[0]
     
-    cursor.execute("""
-    SELECT ganador, bloqueada
-    FROM configuracion
-    WHERE id=1
-    """)
-
+    cursor.execute("SELECT ganador, bloqueada FROM configuracion WHERE id=1")
     datos_rifa = cursor.fetchone()
 
     ganador = datos_rifa[0]
     bloqueada = datos_rifa[1]
     
     cursor.execute("""
-    SELECT
-       nombre_rifa,
-       premio,
-       valor,
-       fecha_sorteo,
-       whatsapp,
-       fecha_bloqueada
+    SELECT nombre_rifa, premio, valor, fecha_sorteo, whatsapp, fecha_bloqueada
     FROM configuracion
     WHERE id=1
     """)
 
     config = cursor.fetchone()
-
-    nombre_rifa_cfg = config[0]
-    premio_cfg = config[1]
-    valor_cfg = config[2]
-    fecha_cfg = config[3]
-    whatsapp_cfg = config[4]
-    fecha_bloqueada = config[5]
 
     conn.close()
 
@@ -359,12 +261,12 @@ def panel():
         ganador=ganador,
         bloqueada=bloqueada,
 
-        nombre_rifa_cfg=nombre_rifa_cfg,
-        premio_cfg=premio_cfg,
-        valor_cfg=valor_cfg,
-        fecha_cfg=fecha_cfg,
-        whatsapp_cfg=whatsapp_cfg,
-        fecha_bloqueada=fecha_bloqueada,
+        nombre_rifa_cfg=config[0],
+        premio_cfg=config[1],
+        valor_cfg=config[2],
+        fecha_cfg=config[3],
+        whatsapp_cfg=config[4],
+        fecha_bloqueada=config[5],
     )
 
 # ==========================
@@ -375,24 +277,16 @@ def pagado(numero):
     if not session.get("admin"):
         return redirect("/admin")
 
-    conn = sqlite3.connect(DB_PATH)
+    conn, db_type = get_db_connection()
     cursor = conn.cursor()
+    p = get_placeholder(db_type)
 
-    cursor.execute("""
-    SELECT bloqueada
-    FROM configuracion
-    WHERE id=1
-    """)
-
+    cursor.execute("SELECT bloqueada FROM configuracion WHERE id=1")
     if cursor.fetchone()[0] == "SI":
         conn.close()
         return redirect("/panel")
 
-    cursor.execute("""
-    UPDATE compras
-    SET estado='pagado'
-    WHERE numero=?
-    """, (numero,))
+    cursor.execute(f"UPDATE compras SET estado='pagado' WHERE numero={p}", (numero,))
 
     conn.commit()
     conn.close()
@@ -407,24 +301,16 @@ def reservado(numero):
     if not session.get("admin"):
         return redirect("/admin")
 
-    conn = sqlite3.connect(DB_PATH)
+    conn, db_type = get_db_connection()
     cursor = conn.cursor()
+    p = get_placeholder(db_type)
 
-    cursor.execute("""
-    SELECT bloqueada
-    FROM configuracion
-    WHERE id=1
-    """)
-
+    cursor.execute("SELECT bloqueada FROM configuracion WHERE id=1")
     if cursor.fetchone()[0] == "SI":
         conn.close()
         return redirect("/panel")
     
-    cursor.execute("""
-    UPDATE compras
-    SET estado='reservado'
-    WHERE numero=?
-    """, (numero,))
+    cursor.execute(f"UPDATE compras SET estado='reservado' WHERE numero={p}", (numero,))
 
     conn.commit()
     conn.close()
@@ -436,29 +322,19 @@ def reservado(numero):
 # ==========================
 @app.route('/liberar/<int:numero>')
 def liberar(numero):
-
     if not session.get("admin"):
         return redirect("/admin")
 
-    conn = sqlite3.connect(DB_PATH)
+    conn, db_type = get_db_connection()
     cursor = conn.cursor()
+    p = get_placeholder(db_type)
 
-    cursor.execute("""
-    SELECT bloqueada
-    FROM configuracion
-    WHERE id=1
-    """)
-
+    cursor.execute("SELECT bloqueada FROM configuracion WHERE id=1")
     if cursor.fetchone()[0] == "SI":
         conn.close()
         return redirect("/panel")
     
-    cursor.execute("""
-    SELECT liberaciones
-    FROM compras
-    WHERE numero=?
-    """, (numero,))
-
+    cursor.execute(f"SELECT liberaciones FROM compras WHERE numero={p}", (numero,))
     dato = cursor.fetchone()
 
     if not dato:
@@ -470,53 +346,43 @@ def liberar(numero):
     if liberaciones >= 1:
         conn.close()
         return """
-        2. Este número ya utilizó su única liberación permitida.
+        <h2>❌ Este número ya utilizó su única liberación permitida.</h2>
         <a href='/panel'>Volver al panel</a>
         """
 
-    cursor.execute("""
-    UPDATE compras
-    SET liberaciones = liberaciones + 1
-    WHERE numero=?
-    """, (numero,))
-
-    cursor.execute("""
-    DELETE FROM compras
-    WHERE numero=?
-    """, (numero,))
+    cursor.execute(f"UPDATE compras SET liberaciones = liberaciones + 1 WHERE numero={p}", (numero,))
+    cursor.execute(f"DELETE FROM compras WHERE numero={p}", (numero,))
 
     conn.commit()
     conn.close()
 
     return redirect("/panel")
 
-
 # ==========================
 # GUARDAR CONFIGURACION
 # ==========================
 @app.route('/guardar_configuracion', methods=['POST'])
 def guardar_configuracion():
-
     if not session.get("admin"):
         return redirect("/admin")
 
     nombre_rifa = request.form.get("nombre_rifa")
     premio = request.form.get("premio")
     valor = request.form.get("valor")
-    fecha_sorteo = request.form.get("fecha_sorteo") # --- CORREGIDO: recibe la fecha ---
+    fecha_sorteo = request.form.get("fecha_sorteo")
     whatsapp = request.form.get("whatsapp")
 
-    conn = sqlite3.connect(DB_PATH)
+    conn, db_type = get_db_connection()
     cursor = conn.cursor()
+    p = get_placeholder(db_type)
 
-    # --- CORREGIDO: Actualiza la fecha_sorteo en la DB ---
-    cursor.execute("""
+    cursor.execute(f"""
     UPDATE configuracion
-    SET nombre_rifa=?,
-        premio=?,
-        valor=?,
-        fecha_sorteo=?,
-        whatsapp=?
+    SET nombre_rifa={p},
+        premio={p},
+        valor={p},
+        fecha_sorteo={p},
+        whatsapp={p}
     WHERE id=1
     """, (
         nombre_rifa,
@@ -534,19 +400,18 @@ def guardar_configuracion():
 # ==========================
 # FINALIZAR RIFA & LOGOUT
 # ==========================
-
 @app.route('/finalizar_rifa/<int:numero>')
 def finalizar_rifa(numero):
-
     if not session.get("admin"):
         return redirect("/admin")
 
-    conn = sqlite3.connect(DB_PATH)
+    conn, db_type = get_db_connection()
     cursor = conn.cursor()
+    p = get_placeholder(db_type)
 
-    cursor.execute("""
+    cursor.execute(f"""
     UPDATE configuracion
-    SET ganador=?,
+    SET ganador={p},
         bloqueada='SI',
         estado='Finalizada'
     WHERE id=1
