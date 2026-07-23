@@ -53,6 +53,7 @@ def init_db():
 
     pk_type = "SERIAL PRIMARY KEY" if db_type == "postgres" else "INTEGER PRIMARY KEY AUTOINCREMENT"
 
+    # 1. Crear tabla compras
     cursor.execute(f"""
     CREATE TABLE IF NOT EXISTS compras(
         id {pk_type},
@@ -61,10 +62,13 @@ def init_db():
         telefono TEXT,
         estado TEXT,
         fecha TEXT,
-        valor INTEGER
-    )
+        valor INTEGER,
+        liberaciones INTEGER DEFAULT 0
+    );
     """)
+    conn.commit()
 
+    # 2. Crear tabla configuracion
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS configuracion(
         id INTEGER PRIMARY KEY,
@@ -75,35 +79,24 @@ def init_db():
         whatsapp TEXT,
         estado TEXT,
         ganador INTEGER DEFAULT 0,
+        fecha_bloqueada TEXT DEFAULT 'NO',
         bloqueada TEXT DEFAULT 'NO'
-    )
+    );
     """)
+    conn.commit()
 
+    # 3. Insertar datos iniciales si no existen
     if db_type == "postgres":
         cursor.execute("""
         INSERT INTO configuracion(id, nombre_rifa, premio, valor, fecha_sorteo, whatsapp, estado)
         VALUES(1, 'GRAN RIFA DIGITAL', '$800.000', '$10.000', '15 Junio 2026', '573001234567', 'Activa')
-        ON CONFLICT (id) DO NOTHING
+        ON CONFLICT (id) DO NOTHING;
         """)
     else:
         cursor.execute("""
         INSERT OR IGNORE INTO configuracion(id, nombre_rifa, premio, valor, fecha_sorteo, whatsapp, estado)
-        VALUES(1, 'GRAN RIFA DIGITAL', '$800.000', '$10.000', '15 Junio 2026', '573001234567', 'Activa')
+        VALUES(1, 'GRAN RIFA DIGITAL', '$800.000', '$10.000', '15 Junio 2026', '573001234567', 'Activa');
         """)
-
-    # Columnas opcionales
-    for col_query in [
-        "ALTER TABLE configuracion ADD COLUMN ganador INTEGER DEFAULT 0",
-        "ALTER TABLE configuracion ADD COLUMN fecha_bloqueada TEXT DEFAULT 'NO'",
-        "ALTER TABLE configuracion ADD COLUMN bloqueada TEXT DEFAULT 'NO'",
-        "ALTER TABLE compras ADD COLUMN liberaciones INTEGER DEFAULT 0"
-    ]:
-        try:
-            cursor.execute(col_query)
-            conn.commit()
-        except:
-            if db_type == "postgres":
-                conn.rollback()
 
     conn.commit()
     conn.close()
@@ -132,7 +125,7 @@ def inicio():
 
     estados = {numero: estado for numero, estado in registros}
 
-    # Genera exactamente números del 0 al 99 (con formato de dos dígitos para la UI si aplica)
+    # Genera los números del 0 al 99
     numeros = []
     for i in range(0, TOTAL_NUMEROS):
         estado = estados.get(i, "libre")
